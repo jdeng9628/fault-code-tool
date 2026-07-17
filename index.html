@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0f172a">
+<meta name="format-detection" content="telephone=no">
+<title>故障码解析</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #0b1220;
+    --card: #131c2e;
+    --card-2: #1b2740;
+    --line: #243049;
+    --text: #e7ecf5;
+    --muted: #8b97ad;
+    --brand: #3b82f6;
+    --brand-2: #60a5fa;
+    --accent: #f59e0b;
+    --ok: #22c55e;
+    --danger: #ef4444;
+    --radius: 16px;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: radial-gradient(1200px 600px at 50% -10%, #16233d 0%, var(--bg) 60%);
+    color: var(--text);
+    min-height: 100%;
+    padding: 16px 14px 40px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 520px; margin: 0 auto; }
+
+  header { text-align: center; padding: 14px 0 22px; }
+  header h1 { font-size: 22px; font-weight: 700; letter-spacing: .5px; }
+  header .subtitle { color: var(--muted); font-size: 13px; margin-top: 6px; }
+
+  .card {
+    background: linear-gradient(180deg, var(--card) 0%, var(--card-2) 100%);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px 16px;
+    margin-bottom: 14px;
+  }
+
+  label.field-label {
+    display: block; font-size: 12px; color: var(--muted);
+    margin-bottom: 8px; letter-spacing: .4px;
+  }
+
+  .input-wrap { position: relative; }
+  input[type="text"] {
+    width: 100%;
+    background: #0c1426;
+    border: 1.5px solid var(--line);
+    color: var(--text);
+    border-radius: 12px;
+    padding: 16px 14px;
+    font-size: 22px;
+    font-family: "SFMono-Regular", Consolas, "Courier New", monospace;
+    letter-spacing: 2px;
+    text-align: center;
+    outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input[type="text"]:focus {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 4px rgba(59,130,246,.18);
+  }
+  input[type="text"]::placeholder { color: #4b5872; letter-spacing: 1px; }
+  .hex-prefix {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--muted); font-size: 18px; font-family: monospace; pointer-events: none;
+  }
+  .has-prefix input { padding-left: 38px; text-align: left; }
+
+  .mask-row {
+    display: flex; align-items: center; gap: 10px; margin-top: 14px;
+  }
+  .mask-row .field-label { margin-bottom: 0; white-space: nowrap; }
+  .mask-row input { padding: 10px 12px; font-size: 15px; text-align: left; letter-spacing: 1px; }
+
+  .result-card { text-align: center; }
+  .result-label { font-size: 12px; color: var(--muted); letter-spacing: 2px; }
+  .result-value {
+    font-size: 64px; font-weight: 800; line-height: 1.1;
+    margin: 6px 0 4px;
+    font-family: "SFMono-Regular", Consolas, monospace;
+    background: linear-gradient(180deg, #fff, var(--brand-2));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .result-value.empty {
+    -webkit-text-fill-color: #33415a;
+    color: #33415a;
+    background: none;
+  }
+  .result-error {
+    font-size: 20px; font-weight: 700; color: var(--danger); margin: 10px 0;
+  }
+
+  .calc-detail {
+    margin-top: 10px; padding-top: 12px; border-top: 1px dashed var(--line);
+    font-family: "SFMono-Regular", Consolas, monospace; font-size: 13px;
+    color: var(--muted); display: grid; gap: 4px; text-align: left;
+  }
+  .calc-detail .row { display: flex; justify-content: space-between; gap: 8px; }
+  .calc-detail .row b { color: var(--text); font-weight: 600; word-break: break-all; text-align: right; }
+
+  .history h2 { font-size: 13px; color: var(--muted); margin-bottom: 10px; letter-spacing: .5px; }
+  .history ul { list-style: none; display: grid; gap: 8px; }
+  .history li {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #0c1426; border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 12px; font-family: monospace; font-size: 14px;
+  }
+  .history li .expr { color: var(--muted); }
+  .history li .res { color: var(--accent); font-weight: 700; font-size: 16px; }
+  .history .empty-tip { color: #41506e; font-size: 13px; text-align: center; padding: 6px 0; }
+  .history .head { display: flex; justify-content: space-between; align-items: center; }
+  .clear-btn {
+    background: transparent; border: 1px solid var(--line); color: var(--muted);
+    border-radius: 8px; padding: 4px 10px; font-size: 12px; cursor: pointer;
+  }
+
+  .actions { display: grid; gap: 10px; }
+  button.primary {
+    width: 100%;
+    background: linear-gradient(180deg, var(--brand) 0%, #2563eb 100%);
+    color: #fff; border: none; border-radius: 12px;
+    padding: 15px; font-size: 16px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 8px 20px rgba(37,99,235,.35);
+    transition: transform .05s;
+  }
+  button.primary:active { transform: translateY(1px); }
+
+  .qr-area { text-align: center; display: none; margin-top: 6px; }
+  .qr-area img {
+    width: 220px; height: 220px; background: #fff; padding: 10px;
+    border-radius: 12px; border: 1px solid var(--line);
+  }
+  .qr-area .tip { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .qr-area .warn { color: var(--accent); }
+
+  footer { text-align: center; color: #41506e; font-size: 11px; margin-top: 18px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>故障码解析</h1>
+    <div class="subtitle">输入十六进制原始值，按掩码 &amp; 计算故障码号</div>
+  </header>
+
+  <section class="card">
+    <label class="field-label" for="hexInput">十六进制原始值</label>
+    <div class="input-wrap has-prefix">
+      <span class="hex-prefix">0x</span>
+      <input id="hexInput" type="text" inputmode="text" autocapitalize="characters"
+             autocomplete="off" spellcheck="false" placeholder="例如 9E" maxlength="8">
+    </div>
+
+    <div class="mask-row">
+      <label class="field-label" for="maskInput">掩码 mask</label>
+      <input id="maskInput" type="text" value="0x3F" inputmode="text" autocomplete="off" spellcheck="false" maxlength="10">
+    </div>
+  </section>
+
+  <section class="card result-card">
+    <div class="result-label">故障码号</div>
+    <div id="resultValue" class="result-value empty">—</div>
+    <div id="resultError" class="result-error" style="display:none;"></div>
+
+    <div id="calcDetail" class="calc-detail" style="display:none;">
+      <div class="row"><span>输入 (DEC)</span><b id="d-in">—</b></div>
+      <div class="row"><span>掩码 (DEC)</span><b id="d-mask">—</b></div>
+      <div class="row"><span>结果 (HEX)</span><b id="d-hex">—</b></div>
+      <div class="row"><span>结果 (BIN)</span><b id="d-bin">—</b></div>
+    </div>
+  </section>
+
+  <section class="card history">
+    <div class="head">
+      <h2>历史记录</h2>
+      <button class="clear-btn" id="clearBtn">清空</button>
+    </div>
+    <ul id="historyList"></ul>
+    <div class="empty-tip" id="historyEmpty">暂无记录</div>
+  </section>
+
+  <section class="actions">
+    <button class="primary" id="qrBtn">显示二维码（扫码打开本工具）</button>
+    <div class="qr-area" id="qrArea">
+      <img id="qrImg" alt="二维码">
+      <div class="tip" id="qrTip"></div>
+    </div>
+  </section>
+
+  <footer>
+    公式：故障码 = (输入值 &amp; 掩码)<br>
+    示例：0x9E &amp; 0x3F = 0x1E = 30
+  </footer>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+
+  var hexInput = $("hexInput");
+  var maskInput = $("maskInput");
+  var resultValue = $("resultValue");
+  var resultError = $("resultError");
+  var calcDetail = $("calcDetail");
+  var historyList = $("historyList");
+  var historyEmpty = $("historyEmpty");
+
+  var HISTORY_KEY = "fault_code_history_v1";
+  var MAX_HISTORY = 10;
+
+  // 把各种写法（9E / 0x9E / 9EH / #9E）统一解析为整数，非法返回 null
+  function parseHex(str) {
+    if (!str) return null;
+    var s = String(str).trim().toUpperCase().replace(/\s+/g, "");
+    if (!s) return null;
+    // 去掉 0x / 0X 前缀
+    if (s.indexOf("0X") === 0) s = s.slice(2);
+    // 去掉 H 后缀
+    if (s.charAt(s.length - 1) === "H") s = s.slice(0, -1);
+    // 去掉 # 前缀
+    if (s.charAt(0) === "#") s = s.slice(1);
+    if (!/^[0-9A-F]+$/.test(s)) return null;
+    return parseInt(s, 16);
+  }
+
+  function toBin(n, bits) {
+    var b = (n >>> 0).toString(2);
+    while (b.length < (bits || 8)) b = "0" + b;
+    // 每 4 位加空格，便于阅读
+    return b.replace(/(.{4})/g, "$1 ").trim();
+  }
+
+  function compute() {
+    var v = parseHex(hexInput.value);
+    var m = parseHex(maskInput.value);
+
+    // 输入为空 → 复位
+    if (!hexInput.value.trim()) {
+      resetResult();
+      return;
+    }
+    if (v === null) {
+      showError("十六进制格式有误");
+      return;
+    }
+    if (m === null) {
+      showError("掩码格式有误");
+      return;
+    }
+
+    var result = v & m;
+    showResult(result, v, m);
+    pushHistory(v, m, result);
+  }
+
+  function showResult(result, v, m) {
+    resultError.style.display = "none";
+    resultValue.className = "result-value";
+    resultValue.textContent = result;
+
+    calcDetail.style.display = "grid";
+    $("d-in").textContent = v + "  (0x" + v.toString(16).toUpperCase() + ")";
+    $("d-mask").textContent = m + "  (0x" + m.toString(16).toUpperCase() + ")";
+    $("d-hex").textContent = "0x" + result.toString(16).toUpperCase();
+    var bits = Math.max(8, Math.ceil(m.toString(2).length / 4) * 4);
+    $("d-bin").textContent = toBin(result, bits);
+  }
+
+  function showError(msg) {
+    resultValue.className = "result-value empty";
+    resultValue.textContent = "—";
+    calcDetail.style.display = "none";
+    resultError.textContent = msg;
+    resultError.style.display = "block";
+  }
+
+  function resetResult() {
+    resultValue.className = "result-value empty";
+    resultValue.textContent = "—";
+    resultError.style.display = "none";
+    calcDetail.style.display = "none";
+  }
+
+  // ---- 历史记录 ----
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
+    catch (e) { return []; }
+  }
+  function saveHistory(list) {
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); } catch (e) {}
+  }
+  function pushHistory(v, m, result) {
+    var list = loadHistory();
+    var key = v + "|" + m;
+    // 去重：相同 输入+掩码 只保留最新
+    list = list.filter(function (it) { return it.k !== key; });
+    list.unshift({ k: key, v: v, m: m, r: result, t: Date.now() });
+    if (list.length > MAX_HISTORY) list = list.slice(0, MAX_HISTORY);
+    saveHistory(list);
+    renderHistory();
+  }
+  function renderHistory() {
+    var list = loadHistory();
+    historyList.innerHTML = "";
+    if (!list.length) {
+      historyEmpty.style.display = "block";
+      return;
+    }
+    historyEmpty.style.display = "none";
+    list.forEach(function (it) {
+      var li = document.createElement("li");
+      var expr = document.createElement("span");
+      expr.className = "expr";
+      expr.textContent = "0x" + it.v.toString(16).toUpperCase() + " & 0x" + it.m.toString(16).toUpperCase();
+      var res = document.createElement("span");
+      res.className = "res";
+      res.textContent = it.r;
+      li.appendChild(expr);
+      li.appendChild(res);
+      // 点击历史可回填
+      li.style.cursor = "pointer";
+      li.addEventListener("click", function () {
+        hexInput.value = it.v.toString(16).toUpperCase();
+        maskInput.value = "0x" + it.m.toString(16).toUpperCase();
+        compute();
+      });
+      historyList.appendChild(li);
+    });
+  }
+
+  // ---- 输入处理 ----
+  // 实时过滤：只保留十六进制字符，自动大写，去掉 0x 方便输入
+  hexInput.addEventListener("input", function () {
+    var raw = hexInput.value.toUpperCase();
+    // 允许输入时带 0x，但显示时剥掉避免重复（更友好：只过滤非法字符）
+    var cleaned = raw.replace(/[^0-9A-FX]/g, "");
+    if (cleaned !== hexInput.value) hexInput.value = cleaned;
+    compute();
+  });
+  maskInput.addEventListener("input", function () {
+    var raw = maskInput.value.toUpperCase();
+    var cleaned = raw.replace(/[^0-9A-FX]/g, "");
+    if (cleaned !== maskInput.value) maskInput.value = cleaned;
+    compute();
+  });
+
+  $("clearBtn").addEventListener("click", function () {
+    saveHistory([]);
+    renderHistory();
+  });
+
+  // ---- 二维码 ----
+  $("qrBtn").addEventListener("click", function () {
+    var area = $("qrArea");
+    var img = $("qrImg");
+    var tip = $("qrTip");
+    var url = location.href;
+
+    if (/^https?:\/\//i.test(url)) {
+      // 已部署到公网，生成可扫码打开的二维码
+      var api = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=" + encodeURIComponent(url);
+      img.src = api;
+      tip.className = "tip";
+      tip.textContent = "微信长按上方二维码 → 识别图中二维码，即可打开本工具";
+      area.style.display = "block";
+    } else {
+      // 本地文件，微信扫不开
+      tip.className = "tip warn";
+      tip.innerHTML = "当前是本地打开（" + url + "），微信扫不出。<br>请先把本页部署到公网（见 README），再用页面地址生成二维码。";
+      img.removeAttribute("src");
+      area.style.display = "block";
+    }
+  });
+
+  // 初始化
+  renderHistory();
+  compute();
+})();
+</script>
+</body>
+</html>
